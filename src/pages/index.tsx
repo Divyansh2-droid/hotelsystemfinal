@@ -28,6 +28,7 @@ export default function Home() {
   const autocompleteRef = useRef<HTMLInputElement | null>(null);
   const autocompleteObj = useRef<any>(null);
 
+  // Initialize Google Autocomplete
   useEffect(() => {
     if (!window.google) {
       const script = document.createElement('script');
@@ -83,14 +84,18 @@ export default function Home() {
     setLoading(false);
   };
 
+  // Fetch user's favorite hotel IDs
   useEffect(() => {
     if (!user) return;
     const fetchFavorites = async () => {
       const { data, error } = await supabase
-        .from<{ place_id: string }>('favorites')
+        .from('favorites')
         .select('place_id')
         .eq('user_id', user.id);
-      if (!error && data) setFavoriteIds(data.map((f) => f.place_id));
+
+      if (!error && data) {
+        setFavoriteIds((data as { place_id: string }[]).map((f) => f.place_id));
+      }
     };
     fetchFavorites();
   }, [user]);
@@ -100,27 +105,33 @@ export default function Home() {
       alert('Please login to save favorites.');
       return;
     }
+
     if (favoriteIds.includes(hotel.place_id)) {
       await supabase
         .from('favorites')
         .delete()
         .eq('place_id', hotel.place_id)
         .eq('user_id', user.id);
+
       setFavoriteIds((prev) => prev.filter((id) => id !== hotel.place_id));
     } else {
-      await supabase.from('favorites').insert([
-        {
-          user_id: user.id,
-          place_id: hotel.place_id,
-          name: hotel.name,
-          vicinity: hotel.vicinity,
-          photo_ref: hotel.photos?.[0]?.photo_reference || null,
-        },
-      ]);
+      await supabase
+        .from('favorites')
+        .insert([
+          {
+            user_id: user.id,
+            place_id: hotel.place_id,
+            name: hotel.name,
+            vicinity: hotel.vicinity,
+            photo_ref: hotel.photos?.[0]?.photo_reference || null,
+          },
+        ]);
+
       setFavoriteIds((prev) => [...prev, hotel.place_id]);
     }
   };
 
+  // Fetch hotels using current location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -287,3 +298,4 @@ export default function Home() {
     </main>
   );
 }
+

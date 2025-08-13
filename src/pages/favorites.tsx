@@ -21,22 +21,25 @@ export default function Favorites() {
     if (!user) return;
 
     setLoading(true);
-    supabase
-      .from<Favorite, Favorite>('favorites')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) setFavorites(data);
-        setLoading(false);
-      });
+    const fetchFavorites = async () => {
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) setFavorites(data as Favorite[]);
+      setLoading(false);
+    };
+
+    fetchFavorites();
   }, [user]);
 
   const removeFavorite = async (id: string) => {
     const confirmDelete = window.confirm('Remove this hotel from favorites?');
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
 
-    await supabase.from<Favorite, Favorite>('favorites').delete().eq('id', id);
+    await supabase.from('favorites').delete().eq('id', id);
     setFavorites((prev) => prev.filter((fav) => fav.id !== id));
   };
 
@@ -109,9 +112,7 @@ export default function Favorites() {
                     Remove
                   </button>
                   <button
-                    onClick={() =>
-                      window.location.href = `/hotel/${fav.place_id}`
-                    }
+                    onClick={() => (window.location.href = `/hotel/${fav.place_id}`)}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded font-semibold text-sm transition"
                   >
                     View

@@ -29,7 +29,7 @@ export const useFavorites = () => {
 
     const fetchFavorites = async () => {
       const { data, error } = await supabase
-        .from<Favorite, Favorite>('favorites') // ✅ Two type arguments
+        .from<Favorite>('favorites') // ✅ one type arguments
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -51,7 +51,7 @@ export const useFavorites = () => {
       if (!user) return;
 
       const { data, error } = await supabase
-        .from<Favorite, AddFavoritePayload>('favorites') // ✅ Two type arguments
+        .from<Favorite>('favorites') // ✅ one type arguments
         .insert([
           {
             user_id: user.id,

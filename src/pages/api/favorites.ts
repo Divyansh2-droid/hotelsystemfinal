@@ -1,44 +1,68 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/lib/supabaseClient';
-import { getUserFromRequest } from '@/lib/authHelpers'; // optional helper if you have auth middleware
+import { getUserFromRequest } from '@/lib/authHelpers';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = await getUserFromRequest(req); // Or get from your auth context/session
+type FavoriteBody = {
+  place_id: string;
+  name: string;
+  vicinity: string;
+  photo_ref: string;
+};
+
+type Favorite = {
+  user_id: string;
+  place_id: string;
+  name: string;
+  vicinity: string;
+  photo_ref: string;
+  created_at: string;
+};
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const user = await getUserFromRequest(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { place_id, name, vicinity, photo_ref } = req.body;
+  const body = req.body as FavoriteBody;
 
   try {
     if (req.method === 'GET') {
-      const { data, error } = await supabase
-        .from('favorites')
+      const { data: favorites, error } = await supabase
+        .from<Favorite, Favorite>('favorites')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+
       if (error) throw error;
-      return res.status(200).json(data);
+      return res.status(200).json(favorites);
     }
 
     if (req.method === 'POST') {
-      const { data, error } = await supabase.from('favorites').insert([
-        {
-          user_id: user.id,
-          place_id,
-          name,
-          vicinity,
-          photo_ref,
-        },
-      ]);
+      const { data, error } = await supabase
+        .from<Favorite, Favorite>('favorites')
+        .insert([
+          {
+            user_id: user.id,
+            place_id: body.place_id,
+            name: body.name,
+            vicinity: body.vicinity,
+            photo_ref: body.photo_ref,
+          },
+        ]);
+
       if (error) throw error;
-      return res.status(200).json(data[0]);
+      return res.status(200).json(data![0]);
     }
 
     if (req.method === 'DELETE') {
       const { data, error } = await supabase
-        .from('favorites')
+        .from<Favorite, Favorite>('favorites')
         .delete()
         .eq('user_id', user.id)
-        .eq('place_id', place_id);
+        .eq('place_id', body.place_id);
+
       if (error) throw error;
       return res.status(200).json({ success: true });
     }

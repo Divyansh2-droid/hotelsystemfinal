@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -21,7 +22,7 @@ export default function Favorites() {
 
     setLoading(true);
     supabase
-      .from<Favorite>('favorites')
+      .from<Favorite, Favorite>('favorites')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -35,7 +36,7 @@ export default function Favorites() {
     const confirmDelete = window.confirm('Remove this hotel from favorites?');
     if (!confirmDelete) return;
 
-    await supabase.from('favorites').delete().eq('id', id);
+    await supabase.from<Favorite, Favorite>('favorites').delete().eq('id', id);
     setFavorites((prev) => prev.filter((fav) => fav.id !== id));
   };
 
@@ -73,11 +74,14 @@ export default function Favorites() {
               className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col hover:shadow-xl transition transform hover:scale-105"
             >
               {fav.photo_ref ? (
-                <img
-                  src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${fav.photo_ref}&key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}`}
-                  alt={fav.name}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="relative w-full h-48">
+                  <Image
+                    src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${fav.photo_ref}&key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}`}
+                    alt={fav.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
               ) : (
                 <div className="w-full h-48 bg-gray-200 flex items-center justify-center text-gray-500 font-medium">
                   No Image Available

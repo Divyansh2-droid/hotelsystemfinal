@@ -1,17 +1,28 @@
 // pages/api/create-checkout-session.ts
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-07-30.basil',
 });
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+type CheckoutRequestBody = {
+  hotelId: string;
+  hotelName: string;
+  checkIn: string;
+  checkOut: string;
+  userId: string;
+};
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
 
-  const { hotelId, hotelName, checkIn, checkOut, userId } = req.body;
+  const { hotelId, hotelName, checkIn, checkOut, userId } = req.body as CheckoutRequestBody;
 
-  if ( !hotelName || !checkIn || !checkOut || !userId) {
+  if (!hotelName || !checkIn || !checkOut || !userId) {
     return res.status(400).json({ error: 'Missing booking information' });
   }
 
@@ -24,21 +35,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           price_data: {
             currency: 'usd',
             product_data: { name: `${hotelName} Booking` },
-            unit_amount: 10000, // $100 in cents, adjust as needed
+            unit_amount: 10000, // $100 in cents
           },
           quantity: 1,
         },
       ],
       success_url: `${req.headers.origin}/booking-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/hotel/${hotelId}`,
-    metadata: {
-  
-  hotelName: req.body.hotelName,
-  checkIn: req.body.checkIn,
-  checkOut: req.body.checkOut,
-  userId: req.body.userId,
-},
-
+      metadata: {
+        hotelName,
+        checkIn,
+        checkOut,
+        userId,
+      },
     });
 
     res.status(200).json({ url: session.url });

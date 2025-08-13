@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -27,7 +28,6 @@ export default function Home() {
   const autocompleteRef = useRef<HTMLInputElement | null>(null);
   const autocompleteObj = useRef<any>(null);
 
-  // Load Google Maps script and initialize Autocomplete
   useEffect(() => {
     if (!window.google) {
       const script = document.createElement('script');
@@ -42,9 +42,10 @@ export default function Home() {
 
   const initAutocomplete = () => {
     if (autocompleteRef.current && !autocompleteObj.current) {
-      autocompleteObj.current = new window.google.maps.places.Autocomplete(autocompleteRef.current, {
-        types: ['(regions)'],
-      });
+      autocompleteObj.current = new window.google.maps.places.Autocomplete(
+        autocompleteRef.current,
+        { types: ['(regions)'] }
+      );
       autocompleteObj.current.addListener('place_changed', onPlaceChanged);
     }
   };
@@ -82,12 +83,11 @@ export default function Home() {
     setLoading(false);
   };
 
-  // Fetch user's favorite hotels
   useEffect(() => {
     if (!user) return;
     const fetchFavorites = async () => {
       const { data, error } = await supabase
-        .from('favorites')
+        .from<{ place_id: string }>('favorites')
         .select('place_id')
         .eq('user_id', user.id);
       if (!error && data) setFavoriteIds(data.map((f) => f.place_id));
@@ -101,21 +101,26 @@ export default function Home() {
       return;
     }
     if (favoriteIds.includes(hotel.place_id)) {
-      await supabase.from('favorites').delete().eq('place_id', hotel.place_id).eq('user_id', user.id);
+      await supabase
+        .from('favorites')
+        .delete()
+        .eq('place_id', hotel.place_id)
+        .eq('user_id', user.id);
       setFavoriteIds((prev) => prev.filter((id) => id !== hotel.place_id));
     } else {
-      await supabase.from('favorites').insert([{
-        user_id: user.id,
-        place_id: hotel.place_id,
-        name: hotel.name,
-        vicinity: hotel.vicinity,
-        photo_ref: hotel.photos?.[0]?.photo_reference || null,
-      }]);
+      await supabase.from('favorites').insert([
+        {
+          user_id: user.id,
+          place_id: hotel.place_id,
+          name: hotel.name,
+          vicinity: hotel.vicinity,
+          photo_ref: hotel.photos?.[0]?.photo_reference || null,
+        },
+      ]);
       setFavoriteIds((prev) => [...prev, hotel.place_id]);
     }
   };
 
-  // Auto-fetch hotels using geolocation
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -137,9 +142,6 @@ export default function Home() {
             "url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1470&q=80')",
         }}
       >
-
-   
-
         <div className="absolute inset-0 bg-black/60"></div>
         <div className="relative z-10 text-center px-4 max-w-3xl text-white">
           <h1 className="text-4xl md:text-5xl font-bold mb-6 drop-shadow-lg">
@@ -163,7 +165,11 @@ export default function Home() {
               onClick={() => {
                 if (autocompleteObj.current) {
                   const place = autocompleteObj.current.getPlace();
-                  if (place && place.geometry) fetchHotels(place.geometry.location.lat(), place.geometry.location.lng());
+                  if (place && place.geometry)
+                    fetchHotels(
+                      place.geometry.location.lat(),
+                      place.geometry.location.lng()
+                    );
                 }
               }}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 rounded-r-full text-lg shadow-md transition"
@@ -177,15 +183,17 @@ export default function Home() {
 
       {/* Hotels Section */}
       <section className="container mx-auto p-6">
-   <h2 className="text-3xl font-semibold mb-8 border-b-2 pb-2 border-black">
-  Hotels Near You
-</h2>
-
+        <h2 className="text-3xl font-semibold mb-8 border-b-2 pb-2 border-black">
+          Hotels Near You
+        </h2>
 
         {loading && (
           <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {loadingSkeleton.map((_, idx) => (
-              <div key={idx} className="bg-white rounded-lg shadow p-4 animate-pulse h-72"></div>
+              <div
+                key={idx}
+                className="bg-white rounded-lg shadow p-4 animate-pulse h-72"
+              ></div>
             ))}
           </div>
         )}
@@ -200,14 +208,17 @@ export default function Home() {
                 <div
                   key={hotel.place_id}
                   className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col hover:shadow-2xl transition cursor-pointer"
-                  onClick={() => (window.location.href = `/hotel/${hotel.place_id}`)}
+                  onClick={() =>
+                    (window.location.href = `/hotel/${hotel.place_id}`)
+                  }
                 >
                   {hotel.photos?.[0] ? (
                     <div className="relative h-48">
-                      <img
+                      <Image
                         src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${hotel.photos[0].photo_reference}&key=${process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY}`}
                         alt={hotel.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                       <button
                         onClick={(e) => {
@@ -247,7 +258,9 @@ export default function Home() {
                     </div>
 
                     <div className="flex items-center justify-between mt-4">
-                      <span className="text-indigo-600 font-bold text-lg">${price}</span>
+                      <span className="text-indigo-600 font-bold text-lg">
+                        ${price}
+                      </span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -266,7 +279,9 @@ export default function Home() {
         )}
 
         {!loading && hotels.length === 0 && !error && (
-          <p className="text-center text-gray-600 text-lg my-10">No hotels to display.</p>
+          <p className="text-center text-gray-600 text-lg my-10">
+            No hotels to display.
+          </p>
         )}
       </section>
     </main>
